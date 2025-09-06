@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finance Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --card: #121a2b;
+      --border: #23314f;
+      --muted: #9fb2d8;
+      --text: #e7eefc;
+      --accent: #7cc4ff;
+      --accent-2: #8bd694;
+      --warn: #ffd27c;
+      --danger: #ff8a8a;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 0; background: var(--bg); color: var(--text); }
+    a { color: var(--accent); text-decoration: none; }
+    .container { max-width: 1180px; margin: 0 auto; padding: 20px; }
+    .nav { position: sticky; top: 0; z-index: 30; background: rgba(11,18,32,.7); backdrop-filter: blur(6px); border-bottom: 1px solid var(--border); }
+    .nav-inner { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; gap: 16px; padding: 10px 20px; }
+    .brand { font-weight: 700; letter-spacing:.3px; }
+    .tabs { display: flex; gap: 8px; margin-left: 8px; flex-wrap: wrap; }
+    .tab { padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; }
+    .tab.active { background: var(--card); border-color: var(--accent); }
+    .right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+    .pill { font-size: 12px; padding: 4px 8px; border-radius: 999px; border:1px solid var(--border); color: var(--muted); }
+    .card { background: var(--card); border:1px solid var(--border); border-radius:16px; padding:16px; }
+    .grid { display:grid; grid-template-columns: 1.3fr .7fr; gap:16px; }
+    @media (max-width: 900px){ .grid { grid-template-columns: 1fr; } }
+    .row { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+    label { display:block; margin-bottom:6px; color: var(--muted); font-size: 13px; }
+    input, select, button { padding: 10px 12px; border-radius:10px; border:1px solid var(--border); background:#101827; color:var(--text); }
+    input, select { min-width: 160px; }
+    button { cursor:pointer; transition: transform .03s ease; }
+    button:active { transform: translateY(1px); }
+    .btn { background:#0f1a2e; }
+    .btn-primary { background:#10243e; border-color:#2f4c77; }
+    .btn-ghost { background:transparent; }
+    .btn-danger { background: #2c0f16; border-color:#5a1a27; color:#ffb3be; }
+    .section-title { margin: 0 0 12px; font-size: 18px; display:flex; align-items:center; gap:8px; }
+    .muted { color: var(--muted); }
+    .badge { font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted); }
+    .progress { height:10px; background:#1a2540; border-radius:8px; overflow:hidden; }
+    .progress-bar { height:100%; background: var(--accent); }
+    .progress.over { background: #40211f; }
+    .progress-bar.over { background: #ff8a8a; }
+    .table { width:100%; border-collapse: collapse; }
+    .table th, .table td { padding:10px; border-bottom:1px solid var(--border); text-align:left; }
+    .table th { color: var(--muted); font-weight:600; position: sticky; top: 52px; background: var(--bg); }
+    .table .num { text-align: right; white-space: nowrap; }
+    .table-wrap { max-height: 420px; overflow:auto; border:1px solid var(--border); border-radius:12px; }
+    .toolbar { display:flex; gap:10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+    .search { min-width: 240px; }
+    .spacer { flex:1; }
+    .toast { position: fixed; right: 16px; bottom: 16px; background:#0f1a2e; border:1px solid var(--border); padding:12px 14px; border-radius:12px; box-shadow: 0 10px 30px rgba(0,0,0,.25); display:none; max-width: 60ch;}
+    .toast.show { display:block; animation: slideup .2s ease-out; }
+    @keyframes slideup { from { opacity:0; transform: translateY(8px);} to {opacity:1; transform: translateY(0);} }
+    .spinner { width:16px; height:16px; border-radius:50%; border:2px solid #2b3a5d; border-top-color: var(--accent); animation: spin .8s linear infinite; display:inline-block; vertical-align: -3px;}
+    @keyframes spin { to { transform: rotate(360deg);} }
+    .hint { font-size: 12px; color: var(--muted); }
+    .ml-chip { display:inline-flex; gap:8px; align-items:center; padding:6px 10px; border-radius:999px; border:1px dashed #35507e; color:#cbe2ff; background:#0f1a2e; }
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
+  </style>
+</head>
+<body>
+  <div class="nav">
+    <div class="nav-inner">
+      <div class="brand">💸 Finance Dashboard</div>
+      <div class="tabs">
+        <div class="tab active" data-tab="dashboard">Dashboard</div>
+        <div class="tab" data-tab="transactions">Transactions</div>
+        <div class="tab" data-tab="budgets">Budgets</div>
+        <div class="tab" data-tab="settings">Settings</div>
+      </div>
+      <div class="right">
+        <span id="statusPill" class="pill">API: <span id="apiHostPill">http://localhost:8000</span></span>
+        <button class="btn" id="logoutBtn">Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- AUTH -->
+    <div class="card" id="authCard">
+      <div class="section-title">Sign in</div>
+      <div class="row">
+        <div>
+          <label>Email</label>
+          <input id="email" placeholder="you@example.com" />
+        </div>
+        <div>
+          <label>Password</label>
+          <input id="password" type="password" placeholder="********" />
+        </div>
+        <div style="display:flex; gap:8px; align-items:end;">
+          <button class="btn-primary" id="registerBtn">Register</button>
+          <button class="btn-primary" id="loginBtn">Login</button>
+        </div>
+        <div class="hint">Tip: Register any email and password for the local demo.</div>
+      </div>
+      <div id="authInfo" style="margin-top:10px; color: var(--accent-2);"></div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="panel-dashboard" class="tab-panel active">
+      <div class="grid">
+        <div class="card">
+          <div class="section-title">Add Transaction</div>
+          <div class="row">
+            <div><label>Date</label><input id="txDate" type="date" /></div>
+            <div><label>Amount</label><input id="txAmount" type="number" step="0.01" placeholder="-12.99" /></div>
+            <div><label>Merchant</label><input id="txMerchant" placeholder="e.g., Starbucks" /></div>
+            <div><label>Description</label><input id="txDesc" placeholder="e.g., Latte" /></div>
+            <div><label>Category (or ML)</label><input id="txCat" placeholder="Uncategorized" /></div>
+          </div>
+          <div class="row" style="margin-top:8px;">
+            <button class="btn" id="suggestBtn">Predict (ML)</button>
+            <button class="btn-primary" id="addBtn">Add</button>
+            <span id="mlSuggest" class="ml-chip" style="display:none;"></span>
+          </div>
+          <div class="hint" style="margin-top:8px;">Enter a negative amount for expenses (e.g., -12.99), positive for income.</div>
+        </div>
+
+        <div class="card">
+          <div class="section-title">Summary</div>
+          <div class="toolbar" style="margin-bottom:8px;">
+            <div class="row">
+              <div><label>From</label><input id="fromDate" type="date" /></div>
+              <div><label>To</label><input id="toDate" type="date" /></div>
+              <button class="btn" id="refreshBtn">Refresh</button>
+              <button class="btn" id="exportBtn">Export CSV</button>
+            </div>
+            <div class="row">
+              <div class="badge">Income: <b id="income">0</b></div>
+              <div class="badge">Expense: <b id="expense">0</b></div>
+            </div>
+          </div>
+          <canvas id="catChart" height="160"></canvas>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <div class="toolbar">
+          <div class="section-title">Recent Transactions</div>
+          <div class="row">
+            <input class="search" id="txSearch" placeholder="Search merchant or description" />
+            <select id="txSort">
+              <option value="date_desc">Date Down</option>
+              <option value="date_asc">Date Up</option>
+              <option value="amount_desc">Amount Down</option>
+              <option value="amount_asc">Amount Up</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="table" id="txTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th class="num">Amount</th>
+                <th>Merchant</th>
+                <th>Category</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody id="txTbody"></tbody>
+          </table>
+        </div>
+        <div class="row" style="justify-content: flex-end; margin-top:10px;">
+          <button class="btn" id="prevBtn">Prev</button>
+          <span class="badge" id="pageInfo">Page 1</span>
+          <button class="btn" id="nextBtn">Next</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRANSACTIONS -->
+    <div id="panel-transactions" class="tab-panel">
+      <div class="card">
+        <div class="section-title">All Transactions</div>
+        <div class="hint" style="margin-bottom:8px;">Same table as Dashboard. Use search, sort, and pagination on the dashboard panel.</div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th class="num">Amount</th>
+                <th>Merchant</th>
+                <th>Category</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody id="txTbody2"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUDGETS -->
+    <div id="panel-budgets" class="tab-panel">
+      <div class="card">
+        <div class="section-title">Budgets</div>
+        <div class="row" style="margin-bottom:10px;">
+          <input id="newBudgetCat" placeholder="Category (e.g., Food & Drink)" />
+          <input id="newBudgetAmt" type="number" step="1" placeholder="Monthly limit" />
+          <button class="btn-primary" id="createBudgetBtn">Add Budget</button>
+          <button class="btn" id="refreshBudgetsBtn">Refresh</button>
+        </div>
+        <div id="budgetsList"></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="panel-settings" class="tab-panel">
+      <div class="grid">
+        <div class="card">
+          <div class="section-title">API Settings</div>
+          <div class="row">
+            <div style="min-width:300px;">
+              <label>Backend API URL</label>
+              <input id="apiUrl" placeholder="http://localhost:8000" />
+            </div>
+            <button class="btn-primary" id="saveApiBtn">Save</button>
+          </div>
+          <div class="hint" style="margin-top:8px;">If you deploy the backend, set the public URL here. It will be saved locally.</div>
+        </div>
+
+        <div class="card">
+          <div class="section-title">ML Tools</div>
+          <div class="row">
+            <button class="btn" id="mlStatusBtn">Status</button>
+            <input id="mlThres" type="number" step="0.05" value="0.75" />
+            <button class="btn-primary" id="setThresBtn">Set Threshold</button>
+          </div>
+          <pre id="mlStatus" style="white-space:pre-wrap;margin-top:8px; border:1px solid var(--border); padding:10px; border-radius:12px;"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // ------------------ State ------------------
+    var API = localStorage.getItem('apiUrl') || 'http://localhost:8000';
+    var token = localStorage.getItem('token') || '';
+    var allTx = [];
+    var page = 1, pageSize = 12;
+    var catChart = null;
+
+    // Tabs
+    (function initTabs(){
+      var tabs = document.querySelectorAll('.tab');
+      for (var i=0; i<tabs.length; i++){
+        tabs[i].addEventListener('click', function(){
+          var current = document.querySelectorAll('.tab');
+          for (var j=0; j<current.length; j++){ current[j].classList.remove('active'); }
+          var panels = document.querySelectorAll('.tab-panel');
+          for (var k=0; k<panels.length; k++){ panels[k].classList.remove('active'); }
+          this.classList.add('active');
+          var id = 'panel-' + this.getAttribute('data-tab');
+          var panel = document.getElementById(id);
+          if(panel) panel.classList.add('active');
+        });
+      }
+    })();
+
+    // Buttons
+    document.getElementById('registerBtn').addEventListener('click', register);
+    document.getElementById('loginBtn').addEventListener('click', login);
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+    document.getElementById('suggestBtn').addEventListener('click', suggestCategory);
+    document.getElementById('addBtn').addEventListener('click', addTransaction);
+    document.getElementById('refreshBtn').addEventListener('click', refreshSummary);
+    document.getElementById('exportBtn').addEventListener('click', downloadCSV);
+    document.getElementById('prevBtn').addEventListener('click', prevPage);
+    document.getElementById('nextBtn').addEventListener('click', nextPage);
+    document.getElementById('txSearch').addEventListener('input', filterTable);
+    document.getElementById('txSort').addEventListener('change', sortTable);
+    document.getElementById('createBudgetBtn').addEventListener('click', createBudget);
+    document.getElementById('refreshBudgetsBtn').addEventListener('click', loadBudgets);
+    document.getElementById('mlStatusBtn').addEventListener('click', showMLStatus);
+    document.getElementById('setThresBtn').addEventListener('click', setMLThreshold);
+    document.getElementById('saveApiBtn').addEventListener('click', saveApiUrl);
+
+    // Init API pill + settings input
+    (function initApi(){
+      var pill = document.getElementById('apiHostPill');
+      if (pill) pill.textContent = API;
+      var apiField = document.getElementById('apiUrl');
+      if (apiField) apiField.value = API;
+    })();
+
+    // ------------------ Auth ------------------
+    function setInfo(msg, isError){
+      var el = document.getElementById('authInfo');
+      if(!el) return;
+      el.style.color = isError ? 'var(--danger)' : 'var(--accent-2)';
+      el.textContent = msg;
+    }
+    function emailEl(){ return document.getElementById('email'); }
+    function passEl(){ return document.getElementById('password'); }
+
+    function register(){
+      var email = (emailEl().value || '').trim();
+      var password = passEl().value;
+      fetch(API + '/auth/register', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({email: email, password: password})
+      }).then(function(res){
+        if(res.ok){ setInfo('Registered. Now login.', false); toast('Registered.'); }
+        else { return res.json().then(function(t){ setInfo('Register failed: ' + (t.detail || res.status), true); toast('Register failed', true); }); }
+      }).catch(function(){ setInfo('Register failed.', true); toast('Register failed', true); });
+    }
+
+    function login(){
+      var email = (emailEl().value || '').trim();
+      var password = passEl().value;
+      fetch(API + '/auth/login', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({email: email, password: password})
+      }).then(function(res){ return res.json().then(function(data){ return {ok: res.ok, data: data}; }); })
+      .then(function(r){
+        if(r.ok){
+          token = r.data.access_token;
+          localStorage.setItem('token', token);
+          setInfo('Logged in.', false);
+          toast('Logged in.');
+          refreshSummary();
+          loadBudgets();
+          listTx();
+          var dash = document.getElementById('panel-dashboard');
+          if(dash) dash.classList.add('active');
+        } else {
+          setInfo('Login failed: ' + (r.data.detail || 'error'), true);
+          toast('Login failed', true);
+        }
+      }).catch(function(){ setInfo('Login failed.', true); toast('Login failed', true); });
+    }
+
+    function logout(){
+      token = '';
+      localStorage.removeItem('token');
+      setInfo('Logged out.', false);
+      toast('Logged out.');
+      allTx = [];
+      renderTable('#txTbody', []);
+      renderTable('#txTbody2', []);
+    }
+
+    // ------------------ Dashboard actions ------------------
+    function addTransaction(){
+      var date = document.getElementById('txDate').value;
+      var amount = parseFloat(document.getElementById('txAmount').value || '0');
+      var merchant = document.getElementById('txMerchant').value;
+      var description = document.getElementById('txDesc').value;
+      var category = document.getElementById('txCat').value || 'Uncategorized';
+      if(!date || !amount){ toast('Date and amount are required.', true); return; }
+      var btn = document.getElementById('addBtn'); setLoading(btn, true);
+      fetch(API + '/transactions', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer ' + token},
+        body: JSON.stringify({date: date, amount: amount, merchant: merchant, description: description, category: category, unique_hash: 'client'})
+      }).then(function(res){
+        if(res.ok){
+          document.getElementById('txAmount').value='';
+          document.getElementById('txMerchant').value='';
+          document.getElementById('txDesc').value='';
+          document.getElementById('txCat').value='';
+          toast('Transaction added.');
+          listTx();
+          refreshSummary();
+        } else {
+          return res.json().then(function(t){ toast('Add failed: ' + (t.detail || res.status), true); });
+        }
+      }).finally(function(){ setLoading(btn, false); });
+    }
+
+    function suggestCategory(){
+      var date = document.getElementById('txDate').value || null;
+      var amount = parseFloat(document.getElementById('txAmount').value || '0');
+      var merchant = document.getElementById('txMerchant').value;
+      var description = document.getElementById('txDesc').value;
+      var chip = document.getElementById('mlSuggest');
+      chip.style.display='inline-flex';
+      chip.innerHTML = '<span class="spinner"></span> Predicting...';
+      fetch(API + '/ml/predict', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({merchant: merchant, description: description, amount: amount, date: date})
+      }).then(function(res){ return res.json(); })
+      .then(function(data){
+        chip.textContent = 'Suggested: ' + data.category + ' (' + Math.round((data.confidence||0)*100) + '%)';
+        if(data.category && data.category !== 'Uncategorized'){
+          document.getElementById('txCat').value = data.category;
+        }
+      }).catch(function(){ chip.textContent = 'No suggestion.'; });
+    }
+
+    function refreshSummary(){
+      var from = document.getElementById('fromDate').value;
+      var to = document.getElementById('toDate').value;
+      var params = new URLSearchParams();
+      if(from) params.set('start_date', from);
+      if(to) params.set('end_date', to);
+      fetch(API + '/analytics/summary?' + params.toString(), {
+        headers:{'Authorization':'Bearer ' + token}
+      }).then(function(res){ return res.json(); })
+      .then(function(data){
+        if(data && typeof data.total_income !== 'undefined'){
+          document.getElementById('income').textContent = data.total_income;
+          document.getElementById('expense').textContent = data.total_expense;
+          drawCatChart(data.by_category || {});
+        }
+      });
+    }
+
+    // ------------------ Transactions table ------------------
+    function listTx(){
+      fetch(API + '/transactions', { headers:{'Authorization':'Bearer ' + token} })
+      .then(function(res){ return res.json(); })
+      .then(function(data){
+        allTx = Array.isArray(data) ? data : [];
+        page = 1;
+        renderTable('#txTbody', filtered());
+        renderTable('#txTbody2', allTx);
+      });
+    }
+
+    function filterTable(){
+      page = 1; renderTable('#txTbody', filtered());
+    }
+    function sortTable(){
+      var v = document.getElementById('txSort').value;
+      var cmp = {
+        'date_desc': function(a,b){ return a.date < b.date ? 1 : -1; },
+        'date_asc': function(a,b){ return a.date > b.date ? 1 : -1; },
+        'amount_desc': function(a,b){ return a.amount < b.amount ? 1 : -1; },
+        'amount_asc': function(a,b){ return a.amount > b.amount ? 1 : -1; }
+      }[v];
+      allTx.sort(cmp); renderTable('#txTbody', filtered());
+    }
+    function prevPage(){ if(page>1){ page--; renderTable('#txTbody', filtered()); } }
+    function nextPage(){
+      var total = filtered().length;
+      if(page*pageSize<total){ page++; renderTable('#txTbody', filtered()); }
+    }
+    function filtered(){
+      var q = (document.getElementById('txSearch').value || '').toLowerCase();
+      if(!q) return allTx.slice();
+      return allTx.filter(function(t){
+        return ((t.merchant||'').toLowerCase().indexOf(q) >= 0) ||
+               ((t.description||'').toLowerCase().indexOf(q) >= 0) ||
+               ((t.category||'').toLowerCase().indexOf(q) >= 0);
+      });
+    }
+    function renderTable(tbodySelector, rows){
+      var tbody = document.querySelector(tbodySelector);
+      if(!tbody) return;
+      var list = rows.slice();
+      var total = list.length;
+      var start = (page-1)*pageSize, end = Math.min(start+pageSize, total);
+      var pageRows = list.slice(start, end);
+      tbody.innerHTML = pageRows.map(function(tx){
+        return '<tr>' +
+          '<td>' + (tx.date || '') + '</td>' +
+          '<td class="num">' + (Number(tx.amount).toFixed(2)) + '</td>' +
+          '<td>' + escapeHtml(tx.merchant||'') + '</td>' +
+          '<td class="muted">' + escapeHtml(tx.category||'') + '</td>' +
+          '<td class="muted">' + escapeHtml(tx.description||'') + '</td>' +
+        '</tr>';
+      }).join('');
+      var info = document.getElementById('pageInfo');
+      if(info){
+        info.textContent = 'Page ' + page + ' - ' + (start+1) + '-' + end + ' of ' + total;
+      }
+    }
+
+    // ------------------ Budgets ------------------
+    function loadBudgets(){
+      fetch(API + '/budgets/progress', { headers:{'Authorization':'Bearer ' + token} })
+      .then(function(res){ return res.json(); })
+      .then(function(data){
+        var el = document.getElementById('budgetsList');
+        if(!el) return;
+        if(!Array.isArray(data)){ el.textContent = 'Login first.'; return; }
+        if(data.length === 0){ el.textContent = 'No budgets yet.'; return; }
+
+        el.innerHTML = data.map(function(b){
+          var pct = b.monthly_limit ? Math.min(100, Math.round((b.actual / b.monthly_limit) * 100)) : 0;
+          var over = b.actual > b.monthly_limit;
+          return '' +
+          '<div class="card" style="margin-bottom:12px;">' +
+            '<div class="row" style="justify-content: space-between;">' +
+              '<div>' +
+                '<div style="font-weight:600;">' + escapeHtml(b.category) + '</div>' +
+                '<div class="muted">Spent $' + b.actual.toFixed(2) + ' / $' + b.monthly_limit.toFixed(2) + ' - ' + b.month + '</div>' +
+              '</div>' +
+              '<div class="badge" style="' + (over ? 'color:var(--danger);' : '') + '">' + (over ? 'Over budget' : 'On track') + '</div>' +
+            '</div>' +
+            '<div class="progress ' + (over ? 'over' : '') + '" style="margin-top:8px;">' +
+              '<div class="progress-bar ' + (over ? 'over' : '') + '" style="width:' + pct + '%"></div>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+      });
+    }
+
+    function createBudget(){
+      var cat = (document.getElementById('newBudgetCat').value || '').trim();
+      var amt = parseFloat(document.getElementById('newBudgetAmt').value || '0');
+      if(!cat || isNaN(amt) || amt <= 0){
+        toast('Enter category and positive limit.', true);
+        return;
+      }
+      var btn = document.getElementById('createBudgetBtn'); setLoading(btn, true);
+      fetch(API + '/budgets', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer ' + token},
+        body: JSON.stringify({category: cat, monthly_limit: amt})
+      }).then(function(res){
+        if(res.ok){
+          toast('Budget created.');
+          document.getElementById('newBudgetCat').value='';
+          document.getElementById('newBudgetAmt').value='';
+          loadBudgets();
+        } else {
+          return res.json().then(function(t){ toast('Create failed: ' + (t.detail || res.status), true); });
+        }
+      }).finally(function(){ setLoading(btn, false); });
+    }
+
+    // ------------------ ML tools ------------------
+    function showMLStatus(){
+      fetch(API + '/ml/status').then(function(res){ return res.json(); })
+      .then(function(data){
+        var el = document.getElementById('mlStatus');
+        if(el) el.textContent = JSON.stringify(data, null, 2);
+      });
+    }
+    function setMLThreshold(){
+      var v = parseFloat(document.getElementById('mlThres').value || '0.75');
+      fetch(API + '/ml/threshold/' + v, { method:'POST' })
+      .then(function(res){ return res.json(); })
+      .then(function(data){
+        var el = document.getElementById('mlStatus');
+        if(el) el.textContent = JSON.stringify(data, null, 2);
+        toast('Threshold updated to ' + v);
+      });
+    }
+
+    // ------------------ CSV export ------------------
+    function downloadCSV(){
+      var from = document.getElementById('fromDate').value || '';
+      var to = document.getElementById('toDate').value || '';
+      var params = new URLSearchParams();
+      if(from) params.set('start_date', from);
+      if(to) params.set('end_date', to);
+      fetch(API + '/transactions/export?' + params.toString(), {
+        headers:{'Authorization':'Bearer ' + token}
+      }).then(function(res){ return res.blob(); })
+      .then(function(blob){
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = 'transactions.csv'; a.click();
+        URL.revokeObjectURL(url);
+        toast('Exported CSV.');
+      });
+    }
+
+    // ------------------ Settings ------------------
+    function saveApiUrl(){
+      var v = (document.getElementById('apiUrl').value || '').trim() || 'http://localhost:8000';
+      localStorage.setItem('apiUrl', v);
+      var pill = document.getElementById('apiHostPill');
+      if (pill) pill.textContent = v;
+      toast('API URL saved. Reload page to apply.');
+    }
+
+    // ------------------ Charts ------------------
+    function drawCatChart(byCat){
+      var ctx = document.getElementById('catChart');
+      if(!ctx) return;
+      if(catChart){ catChart.destroy(); }
+      var labels = Object.keys(byCat || {});
+      var values = Object.values(byCat || {});
+      catChart = new Chart(ctx, {
+        type:'bar',
+        data:{ labels: labels, datasets:[{ label:'By Category', data: values }] },
+        options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true } } }
+      });
+    }
+
+    // ------------------ UX helpers ------------------
+    function toast(msg, isError){
+      var t = document.getElementById('toast');
+      if(!t) return;
+      t.textContent = msg;
+      t.style.borderColor = isError ? '#5a1a27' : 'var(--border)';
+      t.style.color = isError ? 'var(--danger)' : 'var(--text)';
+      t.classList.add('show');
+      setTimeout(function(){ t.classList.remove('show'); }, 2500);
+    }
+    function setLoading(btn, loading){
+      if(!btn) return;
+      btn.disabled = loading;
+      if(loading){
+        btn.dataset._inner = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner"></span> ' + (btn.textContent || '');
+      } else if(btn.dataset._inner){
+        btn.innerHTML = btn.dataset._inner;
+        delete btn.dataset._inner;
+      }
+    }
+    function escapeHtml(s){
+      return (s||'').replace(/[&<>"']/g, function(c){
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+      });
+    }
+
+    // ------------------ Boot ------------------
+    (function boot(){
+      if(token){
+        setInfo('Welcome back.', false);
+        refreshSummary();
+        listTx();
+        loadBudgets();
+        showMLStatus();
+      }
+    })();
+  </script>
+</body>
+</html>

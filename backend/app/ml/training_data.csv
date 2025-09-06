@@ -1,0 +1,15 @@
+date,amount,merchant,description,category
+2025-01-03,-4.50,Starbucks,Latte,Food & Drink
+2025-01-04,-52.99,Uber,Ride to airport,Transport
+2025-01-05,-23.10,Woolworths,Grocery run,Groceries
+2025-01-10,-15.00,Netflix,Monthly subscription,Entertainment
+2025-01-12,2500.00,Company Ltd.,Monthly salary,Income
+2025-01-13,-120.00,Amazon,Headphones,Shopping
+2025-01-14,-8.00,McDonalds,Burger,Food & Drink
+2025-01-15,-60.25,Shell,Petrol,Transport
+2025-01-16,-45.00,Coles,Weekly groceries,Groceries
+2025-01-20,-12.99,Spotify,Music sub,Entertainment
+2025-01-22,200.00,Refund,Product return,Income
+2025-02-02,-30.00,Kmart,Home goods,Shopping
+2025-02-04,-5.00,7-Eleven,Coffee,Food & Drink
+2025-02-06,-14.90,Opal,Train ticket,Transport
